@@ -80,15 +80,15 @@ def parse_input(filename):
 
 def print_cave(rocks, sand, floor):
     occupied = rocks | sand
-    min_x = min(occupied, key=lambda p: p.x).x - 5
-    max_x = max(occupied, key=lambda p: p.x).x + 5
-    min_y = min(0, min(occupied, key=lambda p: p.y).y)
+    min_x = min(occupied, key=lambda p: p[0])[0] - 5
+    max_x = max(occupied, key=lambda p: p[0])[0] + 5
+    min_y = min(0, min(occupied, key=lambda p: p[1])[1])
     max_y = floor
     for y in range(min_y, max_y + 1):
         for x in range(min_x, max_x + 1):
-            if Point(x, y) in rocks or y == floor:
+            if (x, y) in rocks or y == floor:
                 print("#", end="")
-            elif Point(x, y) in sand:
+            elif (x, y) in sand:
                 print("o", end="")
             else:
                 print(".", end="")
