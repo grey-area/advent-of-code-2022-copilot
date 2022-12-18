@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 import re
-from itertools import combinations
 
 
 @dataclass(frozen=True)
@@ -10,45 +9,27 @@ class ValveNode:
     flow: int
     connects_to: set
 
-    def __str__(self):
-        return f"ValveNode(name={self.name}, flow={self.flow})"
-
 
 class Graph:
-    def find_shortest_path(self, start_node, end_node):
-        visited = set()
-        shortest_paths = {start_node: (None, 0)}
-        current_node = start_node
-        while current_node != end_node:
-            visited.add(current_node)
-            destinations = self.nodes_dict[current_node].connects_to
-            weight_to_current_node = shortest_paths[current_node][1]
-            for next_node in destinations:
-                weight = weight_to_current_node + 1
-                if next_node not in shortest_paths:
-                    shortest_paths[next_node] = (current_node, weight)
-                else:
-                    current_shortest_weight = shortest_paths[next_node][1]
-                    if current_shortest_weight > weight:
-                        shortest_paths[next_node] = (current_node, weight)
-            next_destinations = {node: shortest_paths[node] for node in shortest_paths if node not in visited}
-            if not next_destinations:
-                return None
-            current_node = min(next_destinations, key=lambda k: next_destinations[k][1])
-        path = []
-        while current_node is not None:
-            path.append(current_node)
-            next_node = shortest_paths[current_node][0]
-            current_node = next_node
-        path = path[::-1]
-        return path
+    # Find shortest distance from start node to every other node
+    def find_shortest_paths_from(self, start_node):
+        tentative_distances = {node: float('inf') for node in self.nodes_dict}
+        tentative_distances[start_node] = 0
+        unvisited_nodes = set(self.nodes_dict)
+        while unvisited_nodes:
+            current_node = min(unvisited_nodes, key=lambda node: tentative_distances[node])
+            unvisited_nodes.remove(current_node)
+            for neighbor in self.nodes_dict[current_node].connects_to:
+                if neighbor in unvisited_nodes:
+                    new_distance = tentative_distances[current_node] + 1
+                    if new_distance < tentative_distances[neighbor]:
+                        tentative_distances[neighbor] = new_distance
+        return {(start_node, node): distance for node, distance in tentative_distances.items()}
 
     def find_shortest_paths(self, visit_nodes):
         shortest_paths = {}
-        for a, b in combinations(visit_nodes, 2):
-            path = self.find_shortest_path(a, b)
-            shortest_paths[(a, b)] = path
-            shortest_paths[(b, a)] = path
+        for node in visit_nodes:
+            shortest_paths.update(self.find_shortest_paths_from(node))
         return shortest_paths
 
     def __init__(self, nodes_dict):
@@ -64,7 +45,7 @@ class Graph:
             for node in unvisited_nodes:
                 new_path = path + [node]
                 new_unvisited_nodes = unvisited_nodes - {node}
-                duration = len(self.shortest_paths[(path[-1], node)])
+                duration = self.shortest_paths[(path[-1], node)] + 1
                 new_time = time - duration
                 if new_time >= 0:
                     step_score = self.nodes_dict[node].flow * new_time
@@ -77,6 +58,12 @@ class Graph:
     # do this recursively
     def path_generator(self):
         yield from self.path_generator_helper([self.start_node], self.nonzero_nodes)
+
+    def compute_answer(self):
+        best_score = 0
+        for score, _ in self.path_generator():
+            best_score = max(best_score, score)
+        return best_score
 
 
 def parse_line(line):
@@ -110,8 +97,5 @@ def parse_input(filename):
 if __name__ == "__main__":
     graph = parse_input("input.txt")
 
-    best_score = 0
-    for score, path in graph.path_generator():
-        best_score = max(best_score, score)
-
-    print(best_score)
+    answer = graph.compute_answer()
+    print(answer)
