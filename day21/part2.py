@@ -5,25 +5,21 @@ from typing import Callable
 from fractions import Fraction
 
 
-@dataclass
-class Answer:
-    m: Fraction
-    c: Fraction
-
-    def __post_init__(self):
-        self.m = Fraction(self.m)
-        self.c = Fraction(self.c)
+class Value:
+    def __init__(self, m, c):
+        self.m = Fraction(m)
+        self.c = Fraction(c)
 
     def __add__(self, other):
-        return Answer(self.m + other.m, self.c + other.c)
+        return Value(self.m + other.m, self.c + other.c)
 
     def __sub__(self, other):
-        return Answer(self.m - other.m, self.c - other.c)
+        return Value(self.m - other.m, self.c - other.c)
 
     def __mul__(self, other):
         if self.m > 0 and other.m > 0:
             raise ValueError("Both sides in multiplication depend on humn")
-        return Answer(
+        return Value(
             self.m * other.c + other.m * self.c,
             self.c * other.c
         )
@@ -31,33 +27,30 @@ class Answer:
     def __truediv__(self, other):
         if other.m > 0:
             raise ValueError("Right side in division depends on humn")
-        return Answer(self.m / other.c, self.c / other.c)
+        return Value(self.m / other.c, self.c / other.c)
 
     def make_equal(self, other):
         result = (self.c - other.c) / (other.m - self.m)
         if result.denominator != 1:
-            raise ValueError("Answer is not an integer")
-        return Answer(m=0, c=result)
+            raise ValueError("Value is not an integer")
+        return Value(m=0, c=result)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Operation:
+    op: Callable[[Value, Value], Value]
     lhs: str
-    op: Callable[[Answer, Answer], Answer]
     rhs: str
-    ops = {'+': add, '-': sub, '*': mul, '/': truediv, '=': Answer.make_equal}
-
-    def __post_init__(self):
-        self.op = self.ops[self.op]
+    op_dict = {'+': add, '-': sub, '*': mul, '/': truediv, '=': Value.make_equal}
 
 
 def solve(monkeys, name):
     job = monkeys[name]
 
     if name == "humn":
-        ans = Answer(m=1, c=0)
+        ans = Value(m=1, c=0)
     elif isinstance(job, int):
-        ans = Answer(m=0, c=job)
+        ans = Value(m=0, c=job)
     else:
         left_part = solve(monkeys, job.lhs)
         right_part = solve(monkeys, job.rhs)
@@ -71,10 +64,11 @@ def parse_line(line):
     if job.isnumeric():
         job = int(job)
     else:
-        lhs, op, rhs = job.split()
+        lhs, op_str, rhs = job.split()
         if name == "root":
-            op = "="
-        job = Operation(lhs, op, rhs)
+            op_str = "="
+        op = Operation.op_dict[op_str]
+        job = Operation(op, lhs, rhs)
 
     return name, job
 
@@ -87,5 +81,5 @@ def parse_lines(filename):
 
 if __name__ == "__main__":
     monkeys = parse_lines("input.txt")
-    answer = solve(monkeys, "root")
-    print(answer.c.numerator)
+    answer = solve(monkeys, "root").c.numerator
+    print(answer)
